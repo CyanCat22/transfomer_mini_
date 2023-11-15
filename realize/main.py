@@ -99,13 +99,10 @@ class PositionalEncoding(nn.Module):
 
 def get_attn_pad_mask(seq_q, seq_k):
     batch_size, len_q = seq_q.size()
-    print(seq_q.size())
-    print(seq_k.size()[0])
-    batch_size, len_k, _ = seq_k.size()
+    batch_size, len_k = seq_k.size()
     # data.eq(0) 是比较操作，找出序列中所有等于零的元素,返回一个True（即填充（PAD）token），False 表示其他非填充元素
     pad_attn_mask = seq_k.data.eq(0).unsqueeze(1)
     # 根据指定的形状参数沿着指定的维度扩展输入张量
-    # print(pad_attn_mask.expand(batch_size, len_q, len_k))
     return pad_attn_mask.expand(batch_size, len_q, len_k)
 
 
@@ -173,7 +170,7 @@ class MultiHeadAttention(nn.Module):
 
         attn_mask = attn_mask.unsqueeze(1).repeat(1, n_heads, 1, 1)
         # 实例化->传递参数
-        contextm, attn = ScaledDotProductAttention()(Q, K, V, attn_mask)
+        context, attn = ScaledDotProductAttention()(Q, K, V, attn_mask)
         context = context.transpose(1, 2).reshape(
             batch_size, -1, n_heads * d_v)
         # 全连接映射成一维矩阵
@@ -229,11 +226,8 @@ class Encoder(nn.Module):
 
     def forward(self, enc_inputs):
         enc_outputs = self.src_emb(enc_inputs)
-        print(f"enc_outputs1:{enc_outputs.size()}")
         enc_outputs = self.pos_emb(enc_outputs.transpose(0, 1)).transpose(0, 1)
-        print(f"enc_inputs:{enc_inputs.size()}")
-        print(f"enc_outputs:{enc_outputs.size()}")
-        enc_self_attn_mask = get_attn_pad_mask(enc_inputs, enc_outputs)
+        enc_self_attn_mask = get_attn_pad_mask(enc_inputs, enc_inputs)
         enc_self_attns = []
         # 循环遍历每一个编码器层，将词向量和自注意力掩码传递给每一个层，获取该层的输出及自注意力权重，并存储在列表中
         for layer in self.layers:
